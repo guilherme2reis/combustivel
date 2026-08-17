@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<title>Combustível</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Combustível">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>⛽ Combustível</h1>
+</header>
+
+<main>
+
+  <section class="stats-grid" id="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Consumo médio</span>
+      <span class="stat-value" id="stat-consumo">—</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Custo por km</span>
+      <span class="stat-value" id="stat-custo-km">—</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Gasto total</span>
+      <span class="stat-value" id="stat-gasto-total">—</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Km rodados</span>
+      <span class="stat-value" id="stat-km-total">—</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Novo abastecimento</h2>
+    <form id="form-abastecimento">
+      <div class="field">
+        <label for="data">Data</label>
+        <input type="date" id="data" required>
+      </div>
+
+      <div class="field">
+        <label for="combustivel">Combustível</label>
+        <select id="combustivel" required>
+          <option value="Gasolina">Gasolina</option>
+          <option value="Etanol">Etanol</option>
+          <option value="Diesel">Diesel</option>
+          <option value="GNV">GNV</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="km">Km no odômetro</label>
+        <input type="number" id="km" inputmode="numeric" placeholder="ex: 45230" required>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="litros">Litros</label>
+          <input type="number" id="litros" inputmode="decimal" step="0.01" placeholder="ex: 35.5" required>
+        </div>
+        <div class="field">
+          <label for="valorTotal">Valor total (R$)</label>
+          <input type="number" id="valorTotal" inputmode="decimal" step="0.01" placeholder="ex: 210,00" required>
+        </div>
+      </div>
+
+      <div class="field checkbox-field">
+        <label class="checkbox-label">
+          <input type="checkbox" id="tanqueCheio" checked>
+          Enchi o tanque
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary">Adicionar abastecimento</button>
+    </form>
+  </section>
+
+  <section class="card" id="card-por-tipo" hidden>
+    <h2>Por combustível</h2>
+    <div class="lista" id="lista-por-tipo"></div>
+  </section>
+
+  <section class="card">
+    <h2>Histórico</h2>
+    <div id="lista-vazia" class="empty-state" hidden>
+      Nenhum abastecimento registrado ainda.
+    </div>
+    <ul id="lista-abastecimentos" class="lista"></ul>
+  </section>
+
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
