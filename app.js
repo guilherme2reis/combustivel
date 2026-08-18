@@ -1,4 +1,4 @@
-const VERSAO = '1.1.1';
+const VERSAO = '1.1.2';
 const STORAGE_KEY = 'combustivel.abastecimentos';
 
 /** @typedef {{id:string, data:string, km:number, litros:number, valorTotal:number, tanqueCheio:boolean, combustivel:string}} Abastecimento */
