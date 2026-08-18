@@ -11,6 +11,7 @@
   --accent-dim: #16a34a;
   --danger: #ef4444;
   --radius: 14px;
+  --altura-nav: 62px;
 }
 
 html, body {
@@ -23,7 +24,7 @@ html, body {
 }
 
 body {
-  padding-bottom: 40px;
+  padding-bottom: calc(var(--altura-nav) + env(safe-area-inset-bottom, 0px));
 }
 
 .topbar {
@@ -46,6 +47,46 @@ main {
   max-width: 480px;
   margin: 0 auto;
 }
+
+/* ---------- navegação entre telas ---------- */
+
+.view { display: none; }
+.view.ativa { display: block; }
+
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 4px;
+  height: var(--altura-nav);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tab.ativa { color: var(--accent); }
+
+.tab-icone { font-size: 20px; line-height: 1; }
+.tab-label { font-size: 11px; font-weight: 600; }
+
+/* ---------- cards de resumo ---------- */
 
 .stats-grid {
   display: grid;
@@ -89,6 +130,77 @@ main {
   font-size: 16px;
   font-weight: 600;
 }
+
+.resumo-mes-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.resumo-mes-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.resumo-mes-nome {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.resumo-mes-valor {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.1;
+}
+
+.resumo-mes-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ---------- botões de ação ---------- */
+
+.acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.btn-acao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.btn-acao:active { background: var(--bg-input); }
+
+.btn-acao-principal {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04220f;
+}
+
+.btn-acao-principal:active { background: var(--accent-dim); }
+
+.btn-acao-icone { font-size: 20px; line-height: 1; }
+
+/* ---------- formulário ---------- */
 
 .field {
   margin-bottom: 12px;
@@ -164,13 +276,44 @@ select:focus {
   border-radius: 10px;
   font-size: 16px;
   font-weight: 700;
+  font-family: inherit;
   cursor: pointer;
   margin-top: 4px;
 }
 
-.btn-primary:active {
-  background: var(--accent-dim);
+.btn-primary:active { background: var(--accent-dim); }
+
+.btn-secundario {
+  width: 100%;
+  padding: 14px;
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
 }
+
+.btn-secundario:active { background: var(--bg); }
+
+.btn-perigo {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn-perigo:active { background: rgba(239, 68, 68, 0.1); }
+
+/* ---------- listas ---------- */
 
 .lista {
   list-style: none;
@@ -222,6 +365,8 @@ select:focus {
   cursor: pointer;
   line-height: 1;
 }
+
+/* ---------- badges e cards de detalhe ---------- */
 
 .tipo-badge {
   display: inline-block;
@@ -292,6 +437,94 @@ select:focus {
   font-weight: 600;
 }
 
+.tipo-card-rodape {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.linha-tipo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.linha-tipo .nome { font-weight: 600; }
+
+/* ---------- abas de relatório ---------- */
+
+.abas {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.aba {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 9px 6px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.aba.ativa {
+  background: var(--accent);
+  color: #04220f;
+}
+
+.painel-relatorio { display: none; }
+.painel-relatorio.ativo { display: block; }
+
+/* ---------- backup ---------- */
+
+.texto-ajuda {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.separador {
+  height: 1px;
+  background: var(--border);
+  margin: 18px 0;
+}
+
+.status-importacao {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+}
+
+.status-importacao.erro {
+  border-color: var(--danger);
+  color: #fca5a5;
+}
+
+.status-importacao.ok {
+  border-color: var(--accent);
+  color: #86efac;
+}
+
+/* ---------- diversos ---------- */
+
 .empty-state {
   color: var(--text-dim);
   font-size: 14px;
@@ -299,9 +532,16 @@ select:focus {
   padding: 20px 0;
 }
 
+.rodape {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 8px 0 20px;
+}
+
 .toast {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(var(--altura-nav) + 16px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--accent);
@@ -312,4 +552,6 @@ select:focus {
   font-weight: 600;
   box-shadow: 0 4px 14px rgba(0,0,0,0.3);
   z-index: 100;
+  max-width: 90vw;
+  text-align: center;
 }

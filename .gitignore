@@ -1,1 +1,6 @@
 .claude/
+
+# documentos pessoais e temporários do Office — o repositório é público
+*.docx
+*.xlsx
+~$*

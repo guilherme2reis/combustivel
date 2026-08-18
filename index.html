@@ -15,89 +15,203 @@
 <body>
 
 <header class="topbar">
-  <h1>⛽ Combustível</h1>
+  <h1 id="titulo-view">⛽ Combustível</h1>
 </header>
 
 <main>
 
-  <section class="stats-grid" id="stats-grid">
-    <div class="stat-card">
-      <span class="stat-label">Consumo médio</span>
-      <span class="stat-value" id="stat-consumo">—</span>
+  <!-- ============ INÍCIO ============ -->
+  <section id="view-inicio" class="view ativa">
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Consumo médio</span>
+        <span class="stat-value" id="stat-consumo">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Custo por km</span>
+        <span class="stat-value" id="stat-custo-km">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Gasto total</span>
+        <span class="stat-value" id="stat-gasto-total">—</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Km rodados</span>
+        <span class="stat-value" id="stat-km-total">—</span>
+      </div>
     </div>
-    <div class="stat-card">
-      <span class="stat-label">Custo por km</span>
-      <span class="stat-value" id="stat-custo-km">—</span>
+
+    <div class="card resumo-mes" id="card-mes-atual" hidden>
+      <div class="resumo-mes-topo">
+        <span class="resumo-mes-label">Mês atual</span>
+        <span class="resumo-mes-nome" id="mes-atual-nome">—</span>
+      </div>
+      <div class="resumo-mes-valor" id="mes-atual-gasto">—</div>
+      <div class="resumo-mes-sub" id="mes-atual-sub">—</div>
     </div>
-    <div class="stat-card">
-      <span class="stat-label">Gasto total</span>
-      <span class="stat-value" id="stat-gasto-total">—</span>
+
+    <div class="acoes">
+      <button type="button" class="btn-acao btn-acao-principal" data-ir="novo">
+        <span class="btn-acao-icone">⛽</span>
+        <span class="btn-acao-texto">Novo abastecimento</span>
+      </button>
+      <button type="button" class="btn-acao" data-ir="relatorios">
+        <span class="btn-acao-icone">📊</span>
+        <span class="btn-acao-texto">Relatórios</span>
+      </button>
+      <button type="button" class="btn-acao" data-ir="dados">
+        <span class="btn-acao-icone">💾</span>
+        <span class="btn-acao-texto">Backup dos dados</span>
+      </button>
     </div>
-    <div class="stat-card">
-      <span class="stat-label">Km rodados</span>
-      <span class="stat-value" id="stat-km-total">—</span>
-    </div>
+
+    <section class="card">
+      <h2>Histórico</h2>
+      <div id="lista-vazia" class="empty-state" hidden>
+        Nenhum abastecimento registrado ainda.
+      </div>
+      <ul id="lista-abastecimentos" class="lista"></ul>
+    </section>
+
   </section>
 
-  <section class="card">
-    <h2>Novo abastecimento</h2>
-    <form id="form-abastecimento">
-      <div class="field">
-        <label for="data">Data</label>
-        <input type="date" id="data" required>
-      </div>
-
-      <div class="field">
-        <label for="combustivel">Combustível</label>
-        <select id="combustivel" required>
-          <option value="Gasolina">Gasolina</option>
-          <option value="Etanol">Etanol</option>
-          <option value="Diesel">Diesel</option>
-          <option value="GNV">GNV</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="km">Km no odômetro</label>
-        <input type="number" id="km" inputmode="numeric" placeholder="ex: 45230" required>
-      </div>
-
-      <div class="field-row">
+  <!-- ============ NOVO ABASTECIMENTO ============ -->
+  <section id="view-novo" class="view">
+    <section class="card">
+      <h2>Novo abastecimento</h2>
+      <form id="form-abastecimento">
         <div class="field">
-          <label for="litros">Litros</label>
-          <input type="number" id="litros" inputmode="decimal" step="0.01" placeholder="ex: 35.5" required>
+          <label for="data">Data</label>
+          <input type="date" id="data" required>
         </div>
+
         <div class="field">
-          <label for="valorTotal">Valor total (R$)</label>
-          <input type="number" id="valorTotal" inputmode="decimal" step="0.01" placeholder="ex: 210,00" required>
+          <label for="combustivel">Combustível</label>
+          <select id="combustivel" required>
+            <option value="Gasolina">Gasolina</option>
+            <option value="Etanol">Etanol</option>
+            <option value="Diesel">Diesel</option>
+            <option value="GNV">GNV</option>
+          </select>
         </div>
-      </div>
 
-      <div class="field checkbox-field">
-        <label class="checkbox-label">
-          <input type="checkbox" id="tanqueCheio" checked>
-          Enchi o tanque
-        </label>
-      </div>
+        <div class="field">
+          <label for="km">Km no odômetro</label>
+          <input type="number" id="km" inputmode="numeric" placeholder="ex: 45230" required>
+        </div>
 
-      <button type="submit" class="btn-primary">Adicionar abastecimento</button>
-    </form>
+        <div class="field-row">
+          <div class="field">
+            <label for="litros">Litros</label>
+            <input type="number" id="litros" inputmode="decimal" step="0.01" placeholder="ex: 35.5" required>
+          </div>
+          <div class="field">
+            <label for="valorTotal">Valor total (R$)</label>
+            <input type="number" id="valorTotal" inputmode="decimal" step="0.01" placeholder="ex: 210,00" required>
+          </div>
+        </div>
+
+        <div class="field checkbox-field">
+          <label class="checkbox-label">
+            <input type="checkbox" id="tanqueCheio" checked>
+            Enchi o tanque
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary">Adicionar abastecimento</button>
+      </form>
+    </section>
   </section>
 
-  <section class="card" id="card-por-tipo" hidden>
-    <h2>Por combustível</h2>
-    <div class="lista" id="lista-por-tipo"></div>
-  </section>
+  <!-- ============ RELATÓRIOS ============ -->
+  <section id="view-relatorios" class="view">
 
-  <section class="card">
-    <h2>Histórico</h2>
-    <div id="lista-vazia" class="empty-state" hidden>
-      Nenhum abastecimento registrado ainda.
+    <div class="abas">
+      <button type="button" class="aba ativa" data-relatorio="mensal">Mensal</button>
+      <button type="button" class="aba" data-relatorio="tipo">Combustível</button>
+      <button type="button" class="aba" data-relatorio="total">Total</button>
     </div>
-    <ul id="lista-abastecimentos" class="lista"></ul>
+
+    <section class="card painel-relatorio ativo" id="painel-mensal">
+      <h2>Fechamento mensal</h2>
+      <div id="mensal-vazio" class="empty-state" hidden>
+        Registre abastecimentos para ver o fechamento por mês.
+      </div>
+      <div class="lista" id="lista-mensal"></div>
+    </section>
+
+    <section class="card painel-relatorio" id="painel-tipo">
+      <h2>Por combustível</h2>
+      <div id="tipo-vazio" class="empty-state" hidden>
+        Nenhum abastecimento registrado ainda.
+      </div>
+      <div class="lista" id="lista-por-tipo"></div>
+    </section>
+
+    <section class="card painel-relatorio" id="painel-total">
+      <h2>Total geral</h2>
+      <div id="total-vazio" class="empty-state" hidden>
+        Nenhum abastecimento registrado ainda.
+      </div>
+      <div class="lista" id="lista-total"></div>
+    </section>
+
   </section>
+
+  <!-- ============ DADOS / BACKUP ============ -->
+  <section id="view-dados" class="view">
+
+    <section class="card">
+      <h2>Backup dos dados</h2>
+      <p class="texto-ajuda">
+        Seus abastecimentos ficam salvos apenas neste celular. Exporte um CSV de tempos
+        em tempos para não perder nada se trocar de aparelho ou limpar os dados do navegador.
+      </p>
+      <button type="button" class="btn-primary" id="btn-exportar">⬇️ Exportar CSV</button>
+
+      <div class="separador"></div>
+
+      <p class="texto-ajuda">
+        Importar um CSV exportado por este app. Os abastecimentos são somados aos que já
+        existem — registros com a mesma quilometragem são ignorados, então dá para importar
+        o mesmo arquivo duas vezes sem duplicar nada.
+      </p>
+      <button type="button" class="btn-secundario" id="btn-importar">⬆️ Importar CSV</button>
+      <input type="file" id="input-arquivo" accept=".csv,text/csv" hidden>
+      <div id="status-importacao" class="status-importacao" hidden></div>
+    </section>
+
+    <section class="card">
+      <h2>Apagar tudo</h2>
+      <p class="texto-ajuda">
+        Remove todos os abastecimentos deste aparelho. Exporte um CSV antes — não dá para desfazer.
+      </p>
+      <button type="button" class="btn-perigo" id="btn-apagar-tudo">Apagar todos os dados</button>
+    </section>
+
+  </section>
+
+  <footer class="rodape">
+    ⛽ Controle de Combustível · versão <span id="versao">—</span>
+  </footer>
 
 </main>
+
+<nav class="tabbar">
+  <button type="button" class="tab ativa" data-ir="inicio">
+    <span class="tab-icone">🏠</span><span class="tab-label">Início</span>
+  </button>
+  <button type="button" class="tab" data-ir="novo">
+    <span class="tab-icone">⛽</span><span class="tab-label">Abastecer</span>
+  </button>
+  <button type="button" class="tab" data-ir="relatorios">
+    <span class="tab-icone">📊</span><span class="tab-label">Relatórios</span>
+  </button>
+  <button type="button" class="tab" data-ir="dados">
+    <span class="tab-icone">💾</span><span class="tab-label">Dados</span>
+  </button>
+</nav>
 
 <div id="toast" class="toast" hidden></div>
 
