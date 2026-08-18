@@ -1,4 +1,4 @@
-const CACHE = 'combustivel-1.1.0';
+const CACHE = 'tanq-1.1.1';
 const ARQUIVOS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {

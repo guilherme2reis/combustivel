@@ -1,4 +1,4 @@
-const VERSAO = '1.1.0';
+const VERSAO = '1.1.1';
 const STORAGE_KEY = 'combustivel.abastecimentos';
 
 /** @typedef {{id:string, data:string, km:number, litros:number, valorTotal:number, tanqueCheio:boolean, combustivel:string}} Abastecimento */
@@ -11,7 +11,7 @@ const MESES = [
 ];
 
 const TITULOS = {
-  inicio: '⛽ Combustível',
+  inicio: '⛽ TANQ',
   novo: 'Novo abastecimento',
   relatorios: 'Relatórios',
   dados: 'Dados e backup',
@@ -556,7 +556,7 @@ function exportarCSV() {
     return;
   }
   const hoje = new Date().toISOString().slice(0, 10);
-  baixarArquivo(`combustivel-${hoje}.csv`, gerarCSV(lista));
+  baixarArquivo(`tanq-${hoje}.csv`, gerarCSV(lista));
   mostrarToast(`${lista.length} abastecimento(s) exportado(s).`);
 }
 

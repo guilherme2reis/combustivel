@@ -4,3 +4,7 @@
 *.docx
 *.xlsx
 ~$*
+
+# backups exportados pelo app (dados pessoais)
+tanq-*.csv
+combustivel-*.csv

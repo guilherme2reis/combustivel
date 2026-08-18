@@ -1,6 +1,6 @@
 {
-  "name": "Controle de Combustível",
-  "short_name": "Combustível",
+  "name": "TANQ",
+  "short_name": "TANQ",
   "description": "Controle de consumo de combustível por km rodado",
   "start_url": "./index.html",
   "display": "standalone",
