@@ -1,4 +1,4 @@
-const CACHE = 'tanq-1.2.0';
+const CACHE = 'tanq-1.3.0';
 const ARQUIVOS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {

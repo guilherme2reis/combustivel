@@ -30,16 +30,22 @@
         <span class="stat-value" id="stat-consumo">—</span>
       </div>
       <div class="stat-card">
+        <span class="stat-label">Km rodados</span>
+        <span class="stat-value" id="stat-km-total">—</span>
+      </div>
+      <div class="stat-card">
         <span class="stat-label">Custo/km combustível</span>
         <span class="stat-value" id="stat-custo-km">—</span>
       </div>
-      <div class="stat-card">
-        <span class="stat-label">Gasto total</span>
-        <span class="stat-value" id="stat-gasto-total">—</span>
+      <div class="stat-card stat-card-destaque">
+        <span class="stat-label">Custo/km total</span>
+        <span class="stat-value" id="stat-custo-km-total">—</span>
+        <span class="stat-sub">tudo incluído</span>
       </div>
-      <div class="stat-card">
-        <span class="stat-label">Km rodados</span>
-        <span class="stat-value" id="stat-km-total">—</span>
+      <div class="stat-card stat-card-largo">
+        <span class="stat-label">Gasto total com o carro</span>
+        <span class="stat-value" id="stat-gasto-total">—</span>
+        <span class="stat-sub" id="stat-gasto-sub">—</span>
       </div>
     </div>
 
@@ -73,6 +79,10 @@
       <button type="button" class="tile" data-novo="despesa" data-categoria="Multa">
         <span class="tile-icone">🚨</span>
         <span class="tile-texto">Multa</span>
+      </button>
+      <button type="button" class="tile" data-novo="despesa" data-categoria="Pedágio">
+        <span class="tile-icone">🛣️</span>
+        <span class="tile-texto">Pedágio</span>
       </button>
       <button type="button" class="tile" data-novo="despesa" data-categoria="Outros">
         <span class="tile-icone">💸</span>
@@ -167,6 +177,7 @@
             <option value="Manutenção">Manutenção</option>
             <option value="Seguro">Seguro</option>
             <option value="Multa">Multa</option>
+            <option value="Pedágio">Pedágio</option>
             <option value="Outros">Outros</option>
           </select>
         </div>

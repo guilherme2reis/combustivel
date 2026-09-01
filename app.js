@@ -1,4 +1,4 @@
-const VERSAO = '1.2.0';
+const VERSAO = '1.3.0';
 const STORAGE_KEY = 'combustivel.abastecimentos';
 const STORAGE_DESPESAS = 'combustivel.despesas';
 
@@ -6,7 +6,7 @@ const STORAGE_DESPESAS = 'combustivel.despesas';
 /** @typedef {{id:string, data:string, categoria:string, descricao:string, valor:number, km:(number|null)}} Despesa */
 
 const TIPOS_ORDEM = ['Gasolina', 'Etanol', 'Diesel', 'GNV'];
-const CATEGORIAS_ORDEM = ['Documentação', 'Manutenção', 'Seguro', 'Multa', 'Outros'];
+const CATEGORIAS_ORDEM = ['Documentação', 'Manutenção', 'Seguro', 'Multa', 'Pedágio', 'Outros'];
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -249,13 +249,16 @@ function calcularEstatisticas(lista, despesas) {
 
     const resumoMes = resumoSimples(doMes);
     const gastoDespesasMes = somaValor(despesasDoMes);
+    const intervalosMes = agregarIntervalos(intervalos.filter((it) => it.mes === mes));
+    const gastoGeralMes = resumoMes.gastoTotal + gastoDespesasMes;
 
     return {
       mes,
       ...resumoMes,
-      ...agregarIntervalos(intervalos.filter((it) => it.mes === mes)),
+      ...intervalosMes,
       gastoDespesas: gastoDespesasMes,
-      gastoGeral: resumoMes.gastoTotal + gastoDespesasMes,
+      gastoGeral: gastoGeralMes,
+      custoTotalPorKm: intervalosMes.kmRodados ? gastoGeralMes / intervalosMes.kmRodados : null,
       quantidadeDespesas: despesasDoMes.length,
       porTipo: tiposDoMes,
       porCategoria: categoriasDoMes,
@@ -332,10 +335,15 @@ function renderInicio(stats, temRegistros) {
 
   document.getElementById('stat-consumo').textContent = formatoConsumo(geral.consumoMedio);
   document.getElementById('stat-custo-km').textContent = formatoCustoKm(geral.custoPorKm);
+  document.getElementById('stat-custo-km-total').textContent = formatoCustoKm(geral.custoTotalPorKm);
   document.getElementById('stat-gasto-total').textContent =
     temRegistros ? formatoMoeda(geral.gastoGeral) : '—';
   document.getElementById('stat-km-total').textContent =
     geral.kmRodados != null ? formatoKm(geral.kmRodados) : '—';
+
+  document.getElementById('stat-gasto-sub').textContent = temRegistros
+    ? `Combustível ${formatoMoeda(geral.gastoTotal)} · Despesas ${formatoMoeda(geral.gastoDespesas)}`
+    : 'combustível + despesas';
 
   const card = document.getElementById('card-mes-atual');
   if (porMes.length === 0) {
@@ -461,7 +469,9 @@ function renderMensal(porMes) {
       criarItemDetalhe('Litros', formatoLitros(mes.litrosTotal)),
       criarItemDetalhe('Km rodados', mes.kmRodados != null ? formatoKm(mes.kmRodados) : '—'),
       criarItemDetalhe('Consumo médio', formatoConsumo(mes.consumoMedio)),
+      criarItemDetalhe('Preço médio/L', mes.precoMedioLitro != null ? formatoMoeda(mes.precoMedioLitro) : '—'),
       criarItemDetalhe('Custo/km comb.', formatoCustoKm(mes.custoPorKm)),
+      criarItemDetalhe('Custo/km total', formatoCustoKm(mes.custoTotalPorKm)),
     );
 
     div.append(header, grid);
