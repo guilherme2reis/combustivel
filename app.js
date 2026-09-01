@@ -1,4 +1,4 @@
-const VERSAO = '1.3.0';
+const VERSAO = '1.3.1';
 const STORAGE_KEY = 'combustivel.abastecimentos';
 const STORAGE_DESPESAS = 'combustivel.despesas';
 
@@ -1132,7 +1132,20 @@ function init() {
 init();
 
 if ('serviceWorker' in navigator) {
+  // se uma versão nova assumir o controle enquanto o app está aberto, recarrega
+  // sozinho — sem isso o usuário via a versão antiga até abrir o app outra vez
+  const jaTinhaControlador = !!navigator.serviceWorker.controller;
+  let recarregando = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!jaTinhaControlador || recarregando) return;
+    recarregando = true;
+    window.location.reload();
+  });
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js')
+      .then((registro) => registro.update())
+      .catch(() => {});
   });
 }
