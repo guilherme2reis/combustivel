@@ -30,7 +30,7 @@
         <span class="stat-value" id="stat-consumo">—</span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Custo por km</span>
+        <span class="stat-label">Custo/km combustível</span>
         <span class="stat-value" id="stat-custo-km">—</span>
       </div>
       <div class="stat-card">
@@ -52,11 +52,35 @@
       <div class="resumo-mes-sub" id="mes-atual-sub">—</div>
     </div>
 
-    <div class="acoes">
-      <button type="button" class="btn-acao btn-acao-principal" data-ir="novo">
-        <span class="btn-acao-icone">⛽</span>
-        <span class="btn-acao-texto">Novo abastecimento</span>
+    <h2 class="titulo-secao">Registrar</h2>
+    <div class="grid-acesso">
+      <button type="button" class="tile tile-destaque" data-novo="abastecimento">
+        <span class="tile-icone">⛽</span>
+        <span class="tile-texto">Abastecimento</span>
       </button>
+      <button type="button" class="tile" data-novo="despesa" data-categoria="Documentação">
+        <span class="tile-icone">📄</span>
+        <span class="tile-texto">Documentação</span>
+      </button>
+      <button type="button" class="tile" data-novo="despesa" data-categoria="Manutenção">
+        <span class="tile-icone">🔧</span>
+        <span class="tile-texto">Manutenção</span>
+      </button>
+      <button type="button" class="tile" data-novo="despesa" data-categoria="Seguro">
+        <span class="tile-icone">🛡️</span>
+        <span class="tile-texto">Seguro</span>
+      </button>
+      <button type="button" class="tile" data-novo="despesa" data-categoria="Multa">
+        <span class="tile-icone">🚨</span>
+        <span class="tile-texto">Multa</span>
+      </button>
+      <button type="button" class="tile" data-novo="despesa" data-categoria="Outros">
+        <span class="tile-icone">💸</span>
+        <span class="tile-texto">Outros</span>
+      </button>
+    </div>
+
+    <div class="acoes">
       <button type="button" class="btn-acao" data-ir="relatorios">
         <span class="btn-acao-icone">📊</span>
         <span class="btn-acao-texto">Relatórios</span>
@@ -70,17 +94,22 @@
     <section class="card">
       <h2>Histórico</h2>
       <div id="lista-vazia" class="empty-state" hidden>
-        Nenhum abastecimento registrado ainda.
+        Nenhum registro ainda.
       </div>
-      <ul id="lista-abastecimentos" class="lista"></ul>
+      <ul id="lista-historico" class="lista"></ul>
     </section>
 
   </section>
 
-  <!-- ============ NOVO ABASTECIMENTO ============ -->
+  <!-- ============ NOVO REGISTRO ============ -->
   <section id="view-novo" class="view">
-    <section class="card">
-      <h2>Novo abastecimento</h2>
+
+    <div class="abas">
+      <button type="button" class="aba ativa" data-form="abastecimento">⛽ Abastecimento</button>
+      <button type="button" class="aba" data-form="despesa">💸 Despesa</button>
+    </div>
+
+    <section class="card painel-form ativo" id="painel-form-abastecimento">
       <form id="form-abastecimento">
         <div class="field">
           <label for="data">Data</label>
@@ -123,6 +152,45 @@
         <button type="submit" class="btn-primary">Adicionar abastecimento</button>
       </form>
     </section>
+
+    <section class="card painel-form" id="painel-form-despesa">
+      <form id="form-despesa">
+        <div class="field">
+          <label for="d-data">Data</label>
+          <input type="date" id="d-data" required>
+        </div>
+
+        <div class="field">
+          <label for="d-categoria">Categoria</label>
+          <select id="d-categoria" required>
+            <option value="Documentação">Documentação (IPVA, licenciamento)</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Seguro">Seguro</option>
+            <option value="Multa">Multa</option>
+            <option value="Outros">Outros</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="d-descricao">Descrição <span class="opcional">(opcional)</span></label>
+          <input type="text" id="d-descricao" maxlength="80" placeholder="ex: troca de óleo e filtros">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="d-valor">Valor (R$)</label>
+            <input type="number" id="d-valor" inputmode="decimal" step="0.01" placeholder="ex: 350,00" required>
+          </div>
+          <div class="field">
+            <label for="d-km">Km <span class="opcional">(opcional)</span></label>
+            <input type="number" id="d-km" inputmode="numeric" placeholder="ex: 45230">
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary">Adicionar despesa</button>
+      </form>
+    </section>
+
   </section>
 
   <!-- ============ RELATÓRIOS ============ -->
@@ -131,13 +199,14 @@
     <div class="abas">
       <button type="button" class="aba ativa" data-relatorio="mensal">Mensal</button>
       <button type="button" class="aba" data-relatorio="tipo">Combustível</button>
+      <button type="button" class="aba" data-relatorio="despesas">Despesas</button>
       <button type="button" class="aba" data-relatorio="total">Total</button>
     </div>
 
     <section class="card painel-relatorio ativo" id="painel-mensal">
       <h2>Fechamento mensal</h2>
       <div id="mensal-vazio" class="empty-state" hidden>
-        Registre abastecimentos para ver o fechamento por mês.
+        Registre abastecimentos ou despesas para ver o fechamento por mês.
       </div>
       <div class="lista" id="lista-mensal"></div>
     </section>
@@ -150,10 +219,18 @@
       <div class="lista" id="lista-por-tipo"></div>
     </section>
 
+    <section class="card painel-relatorio" id="painel-despesas">
+      <h2>Despesas por categoria</h2>
+      <div id="despesas-vazio" class="empty-state" hidden>
+        Nenhuma despesa registrada ainda.
+      </div>
+      <div class="lista" id="lista-despesas"></div>
+    </section>
+
     <section class="card painel-relatorio" id="painel-total">
       <h2>Total geral</h2>
       <div id="total-vazio" class="empty-state" hidden>
-        Nenhum abastecimento registrado ainda.
+        Nenhum registro ainda.
       </div>
       <div class="lista" id="lista-total"></div>
     </section>
@@ -166,17 +243,16 @@
     <section class="card">
       <h2>Backup dos dados</h2>
       <p class="texto-ajuda">
-        Seus abastecimentos ficam salvos apenas neste celular. Exporte um CSV de tempos
-        em tempos para não perder nada se trocar de aparelho ou limpar os dados do navegador.
+        Seus abastecimentos e despesas ficam salvos apenas neste celular. Exporte um CSV de
+        tempos em tempos para não perder nada se trocar de aparelho ou limpar os dados do navegador.
       </p>
       <button type="button" class="btn-primary" id="btn-exportar">⬇️ Exportar CSV</button>
 
       <div class="separador"></div>
 
       <p class="texto-ajuda">
-        Importar um CSV exportado por este app. Os abastecimentos são somados aos que já
-        existem — registros com a mesma quilometragem são ignorados, então dá para importar
-        o mesmo arquivo duas vezes sem duplicar nada.
+        Importar um CSV exportado por este app. Os registros são somados aos que já existem —
+        os repetidos são ignorados, então dá para importar o mesmo arquivo duas vezes sem duplicar nada.
       </p>
       <button type="button" class="btn-secundario" id="btn-importar">⬆️ Importar CSV</button>
       <input type="file" id="input-arquivo" accept=".csv,text/csv" hidden>
@@ -186,7 +262,8 @@
     <section class="card">
       <h2>Apagar tudo</h2>
       <p class="texto-ajuda">
-        Remove todos os abastecimentos deste aparelho. Exporte um CSV antes — não dá para desfazer.
+        Remove todos os abastecimentos e despesas deste aparelho. Exporte um CSV antes —
+        não dá para desfazer.
       </p>
       <button type="button" class="btn-perigo" id="btn-apagar-tudo">Apagar todos os dados</button>
     </section>
@@ -204,7 +281,7 @@
     <span class="tab-icone">🏠</span><span class="tab-label">Início</span>
   </button>
   <button type="button" class="tab" data-ir="novo">
-    <span class="tab-icone">⛽</span><span class="tab-label">Abastecer</span>
+    <span class="tab-icone">➕</span><span class="tab-label">Registrar</span>
   </button>
   <button type="button" class="tab" data-ir="relatorios">
     <span class="tab-icone">📊</span><span class="tab-label">Relatórios</span>

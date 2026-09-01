@@ -1,9 +1,12 @@
-const VERSAO = '1.1.2';
+const VERSAO = '1.2.0';
 const STORAGE_KEY = 'combustivel.abastecimentos';
+const STORAGE_DESPESAS = 'combustivel.despesas';
 
 /** @typedef {{id:string, data:string, km:number, litros:number, valorTotal:number, tanqueCheio:boolean, combustivel:string}} Abastecimento */
+/** @typedef {{id:string, data:string, categoria:string, descricao:string, valor:number, km:(number|null)}} Despesa */
 
 const TIPOS_ORDEM = ['Gasolina', 'Etanol', 'Diesel', 'GNV'];
+const CATEGORIAS_ORDEM = ['Documentação', 'Manutenção', 'Seguro', 'Multa', 'Outros'];
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -12,7 +15,7 @@ const MESES = [
 
 const TITULOS = {
   inicio: '⛽ TANQ',
-  novo: 'Novo abastecimento',
+  novo: 'Novo registro',
   relatorios: 'Relatórios',
   dados: 'Dados e backup',
 };
@@ -33,6 +36,22 @@ function carregar() {
 /** @param {Abastecimento[]} lista */
 function salvar(lista) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
+}
+
+/** @returns {Despesa[]} */
+function carregarDespesas() {
+  try {
+    const raw = localStorage.getItem(STORAGE_DESPESAS);
+    const lista = raw ? JSON.parse(raw) : [];
+    return lista.map((item) => ({ categoria: 'Outros', descricao: '', km: null, ...item }));
+  } catch {
+    return [];
+  }
+}
+
+/** @param {Despesa[]} lista */
+function salvarDespesas(lista) {
+  localStorage.setItem(STORAGE_DESPESAS, JSON.stringify(lista));
 }
 
 function gerarId() {
@@ -69,6 +88,15 @@ function formatoCustoKm(valor) {
 function nomeMes(ym) {
   const [ano, mes] = ym.split('-');
   return `${MESES[Number(mes) - 1]} ${ano}`;
+}
+
+function slugCategoria(categoria) {
+  return 'cat-' + normalizarTexto(categoria).replace(/[^a-z0-9]+/g, '');
+}
+
+/** Tira o que quebraria o CSV — a descrição é texto livre e não vale um parser completo. */
+function limparTexto(texto) {
+  return String(texto || '').replace(/[;"\r\n]/g, ' ').trim().slice(0, 80);
 }
 
 /* ==================== cálculos ==================== */
@@ -144,6 +172,10 @@ function somaLitros(lista) {
   return lista.reduce((acc, item) => acc + item.litros, 0);
 }
 
+function somaValor(lista) {
+  return lista.reduce((acc, item) => acc + item.valor, 0);
+}
+
 function resumoSimples(lista) {
   const gasto = somaGasto(lista);
   const litros = somaLitros(lista);
@@ -155,14 +187,20 @@ function resumoSimples(lista) {
   };
 }
 
-/** Estatísticas gerais, por tipo de combustível e por mês. */
-function calcularEstatisticas(lista) {
+/** Estatísticas gerais, por tipo de combustível, por categoria de despesa e por mês. */
+function calcularEstatisticas(lista, despesas) {
   const ordenada = [...lista].sort((a, b) => a.km - b.km);
   const intervalos = calcularIntervalos(ordenada);
 
+  const gastoDespesas = somaValor(despesas);
+  const base = { ...resumoSimples(ordenada), ...agregarIntervalos(intervalos) };
+
   const geral = {
-    ...resumoSimples(ordenada),
-    ...agregarIntervalos(intervalos),
+    ...base,
+    gastoDespesas,
+    gastoGeral: base.gastoTotal + gastoDespesas,
+    custoTotalPorKm: base.kmRodados ? (base.gastoTotal + gastoDespesas) / base.kmRodados : null,
+    quantidadeDespesas: despesas.length,
   };
 
   const porTipo = {};
@@ -175,24 +213,56 @@ function calcularEstatisticas(lista) {
     };
   }
 
-  const meses = [...new Set(ordenada.map((item) => item.data.slice(0, 7)))].sort().reverse();
+  const porCategoria = {};
+  for (const categoria of CATEGORIAS_ORDEM) {
+    const daCategoria = despesas.filter((item) => item.categoria === categoria);
+    if (daCategoria.length === 0) continue;
+    porCategoria[categoria] = {
+      total: somaValor(daCategoria),
+      quantidade: daCategoria.length,
+      itens: [...daCategoria].sort((a, b) => b.data.localeCompare(a.data)),
+    };
+  }
+
+  const meses = [...new Set([
+    ...ordenada.map((item) => item.data.slice(0, 7)),
+    ...despesas.map((item) => item.data.slice(0, 7)),
+  ])].sort().reverse();
+
   const porMes = meses.map((mes) => {
     const doMes = ordenada.filter((item) => item.data.slice(0, 7) === mes);
+    const despesasDoMes = despesas.filter((item) => item.data.slice(0, 7) === mes);
+
     const tiposDoMes = {};
     for (const tipo of TIPOS_ORDEM) {
       const doTipo = doMes.filter((item) => item.combustivel === tipo);
       if (doTipo.length === 0) continue;
       tiposDoMes[tipo] = { gastoTotal: somaGasto(doTipo), litrosTotal: somaLitros(doTipo) };
     }
+
+    const categoriasDoMes = {};
+    for (const categoria of CATEGORIAS_ORDEM) {
+      const daCategoria = despesasDoMes.filter((item) => item.categoria === categoria);
+      if (daCategoria.length === 0) continue;
+      categoriasDoMes[categoria] = somaValor(daCategoria);
+    }
+
+    const resumoMes = resumoSimples(doMes);
+    const gastoDespesasMes = somaValor(despesasDoMes);
+
     return {
       mes,
-      ...resumoSimples(doMes),
+      ...resumoMes,
       ...agregarIntervalos(intervalos.filter((it) => it.mes === mes)),
+      gastoDespesas: gastoDespesasMes,
+      gastoGeral: resumoMes.gastoTotal + gastoDespesasMes,
+      quantidadeDespesas: despesasDoMes.length,
       porTipo: tiposDoMes,
+      porCategoria: categoriasDoMes,
     };
   });
 
-  return { geral, porTipo, porMes };
+  return { geral, porTipo, porCategoria, porMes };
 }
 
 /* ==================== telas ==================== */
@@ -206,6 +276,22 @@ function irPara(view) {
   });
   document.getElementById('titulo-view').textContent = TITULOS[view] || TITULOS.inicio;
   window.scrollTo(0, 0);
+}
+
+/** Abre a tela de registro já no formulário certo (e na categoria escolhida). */
+function abrirFormulario(tipo, categoria) {
+  document.querySelectorAll('[data-form]').forEach((botao) => {
+    botao.classList.toggle('ativa', botao.dataset.form === tipo);
+  });
+  document.querySelectorAll('.painel-form').forEach((painel) => {
+    painel.classList.toggle('ativo', painel.id === `painel-form-${tipo}`);
+  });
+
+  if (tipo === 'despesa' && categoria) {
+    document.getElementById('d-categoria').value = categoria;
+  }
+
+  irPara('novo');
 }
 
 /* ==================== renderização ==================== */
@@ -226,48 +312,69 @@ function criarItemDetalhe(label, valor) {
   return div;
 }
 
-function renderInicio(stats, lista) {
+function criarLinha(nome, valor) {
+  const linha = document.createElement('div');
+  linha.className = 'linha-tipo';
+
+  const nomeEl = document.createElement('span');
+  nomeEl.className = 'nome';
+  nomeEl.textContent = nome;
+
+  const valorEl = document.createElement('span');
+  valorEl.textContent = valor;
+
+  linha.append(nomeEl, valorEl);
+  return linha;
+}
+
+function renderInicio(stats, temRegistros) {
   const { geral, porMes } = stats;
 
   document.getElementById('stat-consumo').textContent = formatoConsumo(geral.consumoMedio);
   document.getElementById('stat-custo-km').textContent = formatoCustoKm(geral.custoPorKm);
   document.getElementById('stat-gasto-total').textContent =
-    lista.length > 0 ? formatoMoeda(geral.gastoTotal) : '—';
+    temRegistros ? formatoMoeda(geral.gastoGeral) : '—';
   document.getElementById('stat-km-total').textContent =
     geral.kmRodados != null ? formatoKm(geral.kmRodados) : '—';
 
   const card = document.getElementById('card-mes-atual');
   if (porMes.length === 0) {
     card.hidden = true;
-  } else {
-    const ultimo = porMes[0];
-    const mesCorrente = new Date().toISOString().slice(0, 7);
-    card.hidden = false;
-    document.querySelector('.resumo-mes-label').textContent =
-      ultimo.mes === mesCorrente ? 'Mês atual' : 'Último mês registrado';
-    document.getElementById('mes-atual-nome').textContent = nomeMes(ultimo.mes);
-    document.getElementById('mes-atual-gasto').textContent = formatoMoeda(ultimo.gastoTotal);
-    document.getElementById('mes-atual-sub').textContent =
-      `${ultimo.abastecimentos} abastecimento${ultimo.abastecimentos > 1 ? 's' : ''} · ` +
-      `${formatoLitros(ultimo.litrosTotal)}` +
-      (ultimo.kmRodados != null ? ` · ${formatoKm(ultimo.kmRodados)}` : '');
+    return;
   }
+
+  const ultimo = porMes[0];
+  const mesCorrente = new Date().toISOString().slice(0, 7);
+  card.hidden = false;
+
+  document.querySelector('.resumo-mes-label').textContent =
+    ultimo.mes === mesCorrente ? 'Mês atual' : 'Último mês registrado';
+  document.getElementById('mes-atual-nome').textContent = nomeMes(ultimo.mes);
+  document.getElementById('mes-atual-gasto').textContent = formatoMoeda(ultimo.gastoGeral);
+
+  const partes = [`Combustível ${formatoMoeda(ultimo.gastoTotal)}`];
+  if (ultimo.gastoDespesas > 0) partes.push(`Despesas ${formatoMoeda(ultimo.gastoDespesas)}`);
+  if (ultimo.kmRodados != null) partes.push(formatoKm(ultimo.kmRodados));
+  document.getElementById('mes-atual-sub').textContent = partes.join(' · ');
 }
 
-function renderHistorico(lista) {
-  const ul = document.getElementById('lista-abastecimentos');
+function renderHistorico(lista, despesas) {
+  const ul = document.getElementById('lista-historico');
   const vazio = document.getElementById('lista-vazia');
   ul.innerHTML = '';
 
-  if (lista.length === 0) {
+  const registros = [
+    ...lista.map((item) => ({ ...item, _tipo: 'abastecimento' })),
+    ...despesas.map((item) => ({ ...item, _tipo: 'despesa' })),
+  ].sort((a, b) => b.data.localeCompare(a.data) || (b.km || 0) - (a.km || 0));
+
+  if (registros.length === 0) {
     vazio.hidden = false;
     return;
   }
   vazio.hidden = true;
 
-  const ordenadaDesc = [...lista].sort((a, b) => b.km - a.km);
-
-  for (const item of ordenadaDesc) {
+  for (const item of registros) {
     const li = document.createElement('li');
     li.className = 'item';
 
@@ -276,20 +383,34 @@ function renderHistorico(lista) {
 
     const dataEl = document.createElement('span');
     dataEl.className = 'item-date';
-    dataEl.textContent = `${formatoData(item.data)}${item.tanqueCheio ? ' · tanque cheio' : ''}`;
 
     const mainEl = document.createElement('span');
     mainEl.className = 'item-main';
-    mainEl.textContent = `${formatoKm(item.km)} — ${item.litros.toLocaleString('pt-BR')} L`;
-
-    const badgeEl = document.createElement('span');
-    badgeEl.className = `tipo-badge ${item.combustivel}`;
-    badgeEl.textContent = item.combustivel;
-    mainEl.appendChild(badgeEl);
 
     const subEl = document.createElement('span');
     subEl.className = 'item-sub';
-    subEl.textContent = formatoMoeda(item.valorTotal);
+
+    if (item._tipo === 'abastecimento') {
+      dataEl.textContent = `${formatoData(item.data)}${item.tanqueCheio ? ' · tanque cheio' : ''}`;
+      mainEl.textContent = `${formatoKm(item.km)} — ${item.litros.toLocaleString('pt-BR')} L`;
+
+      const badge = document.createElement('span');
+      badge.className = `tipo-badge ${item.combustivel}`;
+      badge.textContent = item.combustivel;
+      mainEl.appendChild(badge);
+
+      subEl.textContent = formatoMoeda(item.valorTotal);
+    } else {
+      dataEl.textContent = formatoData(item.data) + (item.km ? ` · ${formatoKm(item.km)}` : '');
+      mainEl.textContent = item.descricao || item.categoria;
+
+      const badge = document.createElement('span');
+      badge.className = `tipo-badge ${slugCategoria(item.categoria)}`;
+      badge.textContent = item.categoria;
+      mainEl.appendChild(badge);
+
+      subEl.textContent = formatoMoeda(item.valor);
+    }
 
     info.append(dataEl, mainEl, subEl);
 
@@ -328,42 +449,43 @@ function renderMensal(porMes) {
 
     const badge = document.createElement('span');
     badge.className = 'tipo-badge';
-    badge.textContent = `${mes.abastecimentos}×`;
+    badge.textContent = formatoMoeda(mes.gastoGeral);
 
     header.append(nome, badge);
 
     const grid = document.createElement('div');
     grid.className = 'tipo-card-grid';
     grid.append(
-      criarItemDetalhe('Gasto no mês', formatoMoeda(mes.gastoTotal)),
+      criarItemDetalhe('Combustível', formatoMoeda(mes.gastoTotal)),
+      criarItemDetalhe('Despesas', formatoMoeda(mes.gastoDespesas)),
       criarItemDetalhe('Litros', formatoLitros(mes.litrosTotal)),
       criarItemDetalhe('Km rodados', mes.kmRodados != null ? formatoKm(mes.kmRodados) : '—'),
       criarItemDetalhe('Consumo médio', formatoConsumo(mes.consumoMedio)),
-      criarItemDetalhe('Custo por km', formatoCustoKm(mes.custoPorKm)),
-      criarItemDetalhe('Preço médio/L', mes.precoMedioLitro != null ? formatoMoeda(mes.precoMedioLitro) : '—'),
+      criarItemDetalhe('Custo/km comb.', formatoCustoKm(mes.custoPorKm)),
     );
 
     div.append(header, grid);
 
     const tipos = Object.keys(mes.porTipo);
-    if (tipos.length > 1) {
+    const categorias = Object.keys(mes.porCategoria);
+
+    if (tipos.length > 1 || categorias.length > 0) {
       const rodape = document.createElement('div');
       rodape.className = 'tipo-card-rodape';
-      for (const tipo of tipos) {
-        const linha = document.createElement('div');
-        linha.className = 'linha-tipo';
 
-        const nomeTipo = document.createElement('span');
-        nomeTipo.className = 'nome';
-        nomeTipo.textContent = tipo;
-
-        const valorTipo = document.createElement('span');
-        valorTipo.textContent =
-          `${formatoMoeda(mes.porTipo[tipo].gastoTotal)} · ${formatoLitros(mes.porTipo[tipo].litrosTotal)}`;
-
-        linha.append(nomeTipo, valorTipo);
-        rodape.appendChild(linha);
+      if (tipos.length > 1) {
+        for (const tipo of tipos) {
+          rodape.appendChild(criarLinha(
+            tipo,
+            `${formatoMoeda(mes.porTipo[tipo].gastoTotal)} · ${formatoLitros(mes.porTipo[tipo].litrosTotal)}`,
+          ));
+        }
       }
+
+      for (const categoria of categorias) {
+        rodape.appendChild(criarLinha(categoria, formatoMoeda(mes.porCategoria[categoria])));
+      }
+
       div.appendChild(rodape);
     }
 
@@ -416,21 +538,81 @@ function renderPorTipo(porTipo) {
   }
 }
 
-function renderTotal(geral, lista) {
-  const container = document.getElementById('lista-total');
-  const vazio = document.getElementById('total-vazio');
+function renderDespesas(porCategoria, totalDespesas) {
+  const container = document.getElementById('lista-despesas');
+  const vazio = document.getElementById('despesas-vazio');
+  const categorias = Object.keys(porCategoria);
   container.innerHTML = '';
 
-  if (lista.length === 0) {
+  if (categorias.length === 0) {
     vazio.hidden = false;
     return;
   }
   vazio.hidden = true;
 
-  const ordenada = [...lista].sort((a, b) => a.data.localeCompare(b.data));
-  const periodo = ordenada.length > 1
-    ? `${formatoData(ordenada[0].data)} a ${formatoData(ordenada[ordenada.length - 1].data)}`
-    : formatoData(ordenada[0].data);
+  for (const categoria of categorias) {
+    const info = porCategoria[categoria];
+
+    const div = document.createElement('div');
+    div.className = 'tipo-card';
+
+    const header = document.createElement('div');
+    header.className = 'tipo-card-header';
+
+    const nome = document.createElement('span');
+    nome.className = 'tipo-card-nome';
+    nome.textContent = categoria;
+
+    const badge = document.createElement('span');
+    badge.className = `tipo-badge ${slugCategoria(categoria)}`;
+    badge.textContent = `${info.quantidade}×`;
+
+    header.append(nome, badge);
+
+    const grid = document.createElement('div');
+    grid.className = 'tipo-card-grid';
+    grid.append(
+      criarItemDetalhe('Total gasto', formatoMoeda(info.total)),
+      criarItemDetalhe('% das despesas', totalDespesas > 0
+        ? `${((info.total / totalDespesas) * 100).toFixed(0)}%`
+        : '—'),
+    );
+
+    div.append(header, grid);
+
+    const rodape = document.createElement('div');
+    rodape.className = 'tipo-card-rodape';
+    for (const item of info.itens.slice(0, 5)) {
+      rodape.appendChild(criarLinha(
+        `${formatoData(item.data)}${item.descricao ? ' · ' + item.descricao : ''}`,
+        formatoMoeda(item.valor),
+      ));
+    }
+    if (info.itens.length > 5) {
+      rodape.appendChild(criarLinha(`+ ${info.itens.length - 5} outro(s)`, ''));
+    }
+
+    div.appendChild(rodape);
+    container.appendChild(div);
+  }
+}
+
+function renderTotal(geral, lista, despesas) {
+  const container = document.getElementById('lista-total');
+  const vazio = document.getElementById('total-vazio');
+  container.innerHTML = '';
+
+  const todos = [...lista, ...despesas];
+  if (todos.length === 0) {
+    vazio.hidden = false;
+    return;
+  }
+  vazio.hidden = true;
+
+  const datas = todos.map((item) => item.data).sort();
+  const periodo = datas.length > 1
+    ? `${formatoData(datas[0])} a ${formatoData(datas[datas.length - 1])}`
+    : formatoData(datas[0]);
 
   const div = document.createElement('div');
   div.className = 'tipo-card';
@@ -444,32 +626,29 @@ function renderTotal(geral, lista) {
 
   const badge = document.createElement('span');
   badge.className = 'tipo-badge';
-  badge.textContent = `${geral.abastecimentos}×`;
+  badge.textContent = formatoMoeda(geral.gastoGeral);
 
   header.append(nome, badge);
 
   const grid = document.createElement('div');
   grid.className = 'tipo-card-grid';
   grid.append(
-    criarItemDetalhe('Gasto total', formatoMoeda(geral.gastoTotal)),
+    criarItemDetalhe('Combustível', formatoMoeda(geral.gastoTotal)),
+    criarItemDetalhe('Despesas', formatoMoeda(geral.gastoDespesas)),
     criarItemDetalhe('Litros totais', formatoLitros(geral.litrosTotal)),
     criarItemDetalhe('Km rodados', geral.kmRodados != null ? formatoKm(geral.kmRodados) : '—'),
     criarItemDetalhe('Consumo médio', formatoConsumo(geral.consumoMedio)),
-    criarItemDetalhe('Custo por km', formatoCustoKm(geral.custoPorKm)),
     criarItemDetalhe('Preço médio/L', geral.precoMedioLitro != null ? formatoMoeda(geral.precoMedioLitro) : '—'),
+    criarItemDetalhe('Custo/km comb.', formatoCustoKm(geral.custoPorKm)),
+    criarItemDetalhe('Custo/km total', formatoCustoKm(geral.custoTotalPorKm)),
   );
 
   const rodape = document.createElement('div');
   rodape.className = 'tipo-card-rodape';
-  const linha = document.createElement('div');
-  linha.className = 'linha-tipo';
-  const nomePeriodo = document.createElement('span');
-  nomePeriodo.className = 'nome';
-  nomePeriodo.textContent = 'Período';
-  const valorPeriodo = document.createElement('span');
-  valorPeriodo.textContent = periodo;
-  linha.append(nomePeriodo, valorPeriodo);
-  rodape.appendChild(linha);
+  rodape.append(
+    criarLinha('Período', periodo),
+    criarLinha('Registros', `${geral.abastecimentos} abastecimento(s) · ${geral.quantidadeDespesas} despesa(s)`),
+  );
 
   div.append(header, grid, rodape);
   container.appendChild(div);
@@ -477,26 +656,34 @@ function renderTotal(geral, lista) {
 
 function render() {
   const lista = carregar();
-  const stats = calcularEstatisticas(lista);
+  const despesas = carregarDespesas();
+  const stats = calcularEstatisticas(lista, despesas);
 
-  renderInicio(stats, lista);
-  renderHistorico(lista);
+  renderInicio(stats, lista.length + despesas.length > 0);
+  renderHistorico(lista, despesas);
   renderMensal(stats.porMes);
   renderPorTipo(stats.porTipo);
-  renderTotal(stats.geral, lista);
+  renderDespesas(stats.porCategoria, stats.geral.gastoDespesas);
+  renderTotal(stats.geral, lista, despesas);
 }
 
 /* ==================== ações ==================== */
 
 function excluir(item) {
-  const ok = confirm(
-    `Excluir o abastecimento de ${formatoData(item.data)} (${formatoKm(item.km)})?`
-  );
-  if (!ok) return;
+  const descricao = item._tipo === 'abastecimento'
+    ? `o abastecimento de ${formatoData(item.data)} (${formatoKm(item.km)})`
+    : `a despesa "${item.descricao || item.categoria}" de ${formatoData(item.data)}`;
 
-  salvar(carregar().filter((reg) => reg.id !== item.id));
+  if (!confirm(`Excluir ${descricao}?`)) return;
+
+  if (item._tipo === 'abastecimento') {
+    salvar(carregar().filter((reg) => reg.id !== item.id));
+  } else {
+    salvarDespesas(carregarDespesas().filter((reg) => reg.id !== item.id));
+  }
+
   render();
-  mostrarToast('Abastecimento excluído.');
+  mostrarToast('Registro excluído.');
 }
 
 function mostrarToast(mensagem) {
@@ -509,23 +696,27 @@ function mostrarToast(mensagem) {
 
 /* ==================== CSV ==================== */
 
-const CABECALHO_CSV = ['data', 'combustivel', 'km', 'litros', 'valor', 'tanque_cheio'];
+const CABECALHO_CSV = ['data', 'tipo', 'categoria', 'descricao', 'km', 'litros', 'valor', 'tanque_cheio'];
 
 // marca de início de arquivo UTF-8 que o Excel espera para exibir acentos corretamente
 const BOM = '﻿';
+
+// U+0300..U+036F = marcas de acento que a normalização NFD separa das letras
+const REGEX_ACENTOS = new RegExp('[\\u0300-\\u036f]', 'g');
 
 function numeroParaCSV(valor, casas) {
   return valor.toFixed(casas).replace('.', ',');
 }
 
-function gerarCSV(lista) {
-  const ordenada = [...lista].sort((a, b) => a.km - b.km);
+function gerarCSV(lista, despesas) {
   const linhas = [CABECALHO_CSV.join(';')];
 
-  for (const item of ordenada) {
+  for (const item of [...lista].sort((a, b) => a.km - b.km)) {
     linhas.push([
       formatoData(item.data),
+      'abastecimento',
       item.combustivel,
+      '',
       numeroParaCSV(item.km, 0),
       numeroParaCSV(item.litros, 2),
       numeroParaCSV(item.valorTotal, 2),
@@ -533,11 +724,23 @@ function gerarCSV(lista) {
     ].join(';'));
   }
 
+  for (const item of [...despesas].sort((a, b) => a.data.localeCompare(b.data))) {
+    linhas.push([
+      formatoData(item.data),
+      'despesa',
+      item.categoria,
+      limparTexto(item.descricao),
+      item.km ? numeroParaCSV(item.km, 0) : '',
+      '',
+      numeroParaCSV(item.valor, 2),
+      '',
+    ].join(';'));
+  }
+
   return linhas.join('\r\n');
 }
 
 function baixarArquivo(nomeArquivo, conteudo) {
-  // BOM na frente para o Excel abrir os acentos corretamente
   const blob = new Blob([BOM + conteudo], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -551,13 +754,16 @@ function baixarArquivo(nomeArquivo, conteudo) {
 
 function exportarCSV() {
   const lista = carregar();
-  if (lista.length === 0) {
+  const despesas = carregarDespesas();
+
+  if (lista.length + despesas.length === 0) {
     mostrarToast('Nada para exportar ainda.');
     return;
   }
+
   const hoje = new Date().toISOString().slice(0, 10);
-  baixarArquivo(`tanq-${hoje}.csv`, gerarCSV(lista));
-  mostrarToast(`${lista.length} abastecimento(s) exportado(s).`);
+  baixarArquivo(`tanq-${hoje}.csv`, gerarCSV(lista, despesas));
+  mostrarToast(`${lista.length + despesas.length} registro(s) exportado(s).`);
 }
 
 /** Aceita "1.234,56", "1234,56" e "1234.56". */
@@ -597,9 +803,6 @@ function parseDataParaISO(texto) {
   return null;
 }
 
-// U+0300..U+036F = marcas de acento que a normalização NFD separa das letras
-const REGEX_ACENTOS = new RegExp('[\\u0300-\\u036f]', 'g');
-
 function normalizarTexto(texto) {
   return String(texto || '')
     .trim()
@@ -613,6 +816,11 @@ function parseCombustivel(texto) {
   return TIPOS_ORDEM.find((tipo) => normalizarTexto(tipo) === alvo) || null;
 }
 
+function parseCategoria(texto) {
+  const alvo = normalizarTexto(texto);
+  return CATEGORIAS_ORDEM.find((cat) => normalizarTexto(cat) === alvo) || null;
+}
+
 function parseTanqueCheio(texto) {
   const s = normalizarTexto(texto);
   if (['nao', 'n', 'false', '0', 'parcial'].includes(s)) return false;
@@ -624,33 +832,36 @@ function dividirLinha(linha, separador) {
 }
 
 /**
- * Lê o CSV e devolve os abastecimentos válidos. Aceita o arquivo gerado por este
- * app e variações razoáveis (separador `,`, datas ISO, decimais com ponto).
+ * Lê o CSV e separa abastecimentos de despesas. Entende o formato atual (com a
+ * coluna `tipo`) e também o formato antigo, só de abastecimentos.
  */
 function parseCSV(texto) {
   const limpo = texto.charAt(0) === BOM ? texto.slice(1) : texto;
   const linhas = limpo.split(/\r?\n/).filter((l) => l.trim() !== '');
 
-  if (linhas.length === 0) return { registros: [], invalidos: 0 };
+  if (linhas.length === 0) return { abastecimentos: [], despesas: [], invalidos: 0 };
 
   const separador = (linhas[0].match(/;/g) || []).length >= (linhas[0].match(/,/g) || []).length ? ';' : ',';
-
-  let indices = { data: 0, combustivel: 1, km: 2, litros: 3, valor: 4, tanque_cheio: 5 };
-  let inicio = 0;
-
   const primeira = dividirLinha(linhas[0], separador).map(normalizarTexto);
-  if (primeira.includes('data') || primeira.includes('km')) {
-    inicio = 1;
-    const achar = (...nomes) => {
-      for (const nome of nomes) {
-        const i = primeira.indexOf(nome);
-        if (i !== -1) return i;
-      }
-      return -1;
-    };
+  const temCabecalho = primeira.includes('data') || primeira.includes('km');
+
+  const achar = (...nomes) => {
+    for (const nome of nomes) {
+      const i = primeira.indexOf(nome);
+      if (i !== -1) return i;
+    }
+    return -1;
+  };
+
+  // sem cabeçalho reconhecido, assume o formato antigo posicional
+  let indices = { data: 0, tipo: -1, categoria: 1, descricao: -1, km: 2, litros: 3, valor: 4, tanque_cheio: 5 };
+
+  if (temCabecalho) {
     indices = {
       data: achar('data'),
-      combustivel: achar('combustivel', 'combustível', 'tipo'),
+      tipo: achar('tipo'),
+      categoria: achar('categoria', 'combustivel'),
+      descricao: achar('descricao', 'observacao', 'obs'),
       km: achar('km', 'odometro', 'quilometragem'),
       litros: achar('litros', 'litro'),
       valor: achar('valor', 'valor_total', 'valortotal', 'total'),
@@ -658,61 +869,98 @@ function parseCSV(texto) {
     };
   }
 
-  const registros = [];
+  const abastecimentos = [];
+  const despesas = [];
   let invalidos = 0;
 
-  for (let i = inicio; i < linhas.length; i++) {
+  for (let i = temCabecalho ? 1 : 0; i < linhas.length; i++) {
     const celulas = dividirLinha(linhas[i], separador);
     const pegar = (idx) => (idx >= 0 && idx < celulas.length ? celulas[idx] : '');
 
     const data = parseDataParaISO(pegar(indices.data));
-    const km = parseNumero(pegar(indices.km));
-    const litros = parseNumero(pegar(indices.litros));
-    const valorTotal = parseNumero(pegar(indices.valor));
-    const combustivel = parseCombustivel(pegar(indices.combustivel));
+    const valor = parseNumero(pegar(indices.valor));
+    const ehDespesa = normalizarTexto(pegar(indices.tipo)) === 'despesa';
 
-    if (!data || !isFinite(km) || !isFinite(litros) || !isFinite(valorTotal) || km <= 0 || litros <= 0) {
+    if (!data || !isFinite(valor) || valor < 0) {
       invalidos++;
       continue;
     }
 
-    registros.push({
+    if (ehDespesa) {
+      const km = parseNumero(pegar(indices.km));
+      despesas.push({
+        data,
+        categoria: parseCategoria(pegar(indices.categoria)) || 'Outros',
+        descricao: limparTexto(pegar(indices.descricao)),
+        valor,
+        km: isFinite(km) && km > 0 ? km : null,
+      });
+      continue;
+    }
+
+    const km = parseNumero(pegar(indices.km));
+    const litros = parseNumero(pegar(indices.litros));
+
+    if (!isFinite(km) || !isFinite(litros) || km <= 0 || litros <= 0) {
+      invalidos++;
+      continue;
+    }
+
+    abastecimentos.push({
       data,
       km,
       litros,
-      valorTotal,
-      combustivel: combustivel || 'Gasolina',
+      valorTotal: valor,
+      combustivel: parseCombustivel(pegar(indices.categoria)) || 'Gasolina',
       tanqueCheio: parseTanqueCheio(pegar(indices.tanque_cheio)),
     });
   }
 
-  return { registros, invalidos };
+  return { abastecimentos, despesas, invalidos };
+}
+
+function chaveDespesa(d) {
+  return `${d.data}|${d.categoria}|${d.valor.toFixed(2)}|${d.descricao}`;
 }
 
 function importarCSV(texto) {
-  const { registros, invalidos } = parseCSV(texto);
+  const { abastecimentos, despesas, invalidos } = parseCSV(texto);
+
   const lista = carregar();
+  const listaDespesas = carregarDespesas();
   const kmExistentes = new Set(lista.map((item) => item.km));
+  const chavesExistentes = new Set(listaDespesas.map(chaveDespesa));
 
   let adicionados = 0;
   let ignorados = 0;
 
-  for (const reg of registros) {
-    if (kmExistentes.has(reg.km)) {
-      ignorados++;
-      continue;
-    }
+  for (const reg of abastecimentos) {
+    if (kmExistentes.has(reg.km)) { ignorados++; continue; }
     kmExistentes.add(reg.km);
     lista.push({ id: gerarId(), ...reg });
     adicionados++;
   }
 
+  for (const reg of despesas) {
+    const chave = chaveDespesa(reg);
+    if (chavesExistentes.has(chave)) { ignorados++; continue; }
+    chavesExistentes.add(chave);
+    listaDespesas.push({ id: gerarId(), ...reg });
+    adicionados++;
+  }
+
   if (adicionados > 0) {
     salvar(lista);
+    salvarDespesas(listaDespesas);
     render();
   }
 
-  return { adicionados, ignorados, invalidos, total: registros.length };
+  return {
+    adicionados,
+    ignorados,
+    invalidos,
+    total: abastecimentos.length + despesas.length,
+  };
 }
 
 function mostrarStatusImportacao(mensagem, tipo) {
@@ -729,14 +977,25 @@ function init() {
 
   const isoHoje = new Date().toISOString().slice(0, 10);
   document.getElementById('data').value = isoHoje;
+  document.getElementById('d-data').value = isoHoje;
 
   document.querySelectorAll('[data-ir]').forEach((botao) => {
     botao.addEventListener('click', () => irPara(botao.dataset.ir));
   });
 
+  document.querySelectorAll('[data-novo]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      abrirFormulario(botao.dataset.novo, botao.dataset.categoria);
+    });
+  });
+
+  document.querySelectorAll('[data-form]').forEach((botao) => {
+    botao.addEventListener('click', () => abrirFormulario(botao.dataset.form));
+  });
+
   document.querySelectorAll('[data-relatorio]').forEach((botao) => {
     botao.addEventListener('click', () => {
-      document.querySelectorAll('.aba').forEach((a) => a.classList.toggle('ativa', a === botao));
+      document.querySelectorAll('[data-relatorio]').forEach((a) => a.classList.toggle('ativa', a === botao));
       document.querySelectorAll('.painel-relatorio').forEach((p) => {
         p.classList.toggle('ativo', p.id === `painel-${botao.dataset.relatorio}`);
       });
@@ -774,6 +1033,37 @@ function init() {
     mostrarToast('Abastecimento adicionado!');
   });
 
+  document.getElementById('form-despesa').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+
+    const data = document.getElementById('d-data').value;
+    const categoria = document.getElementById('d-categoria').value;
+    const descricao = limparTexto(document.getElementById('d-descricao').value);
+    const valor = parseFloat(document.getElementById('d-valor').value);
+    const kmBruto = parseFloat(document.getElementById('d-km').value);
+
+    if (!data || !categoria || isNaN(valor)) return;
+
+    const listaDespesas = carregarDespesas();
+    listaDespesas.push({
+      id: gerarId(),
+      data,
+      categoria,
+      descricao,
+      valor,
+      km: isNaN(kmBruto) || kmBruto <= 0 ? null : kmBruto,
+    });
+    salvarDespesas(listaDespesas);
+    render();
+
+    ev.target.reset();
+    document.getElementById('d-data').value = isoHoje;
+    document.getElementById('d-categoria').value = categoria;
+
+    irPara('inicio');
+    mostrarToast(`${categoria} registrada!`);
+  });
+
   document.getElementById('btn-exportar').addEventListener('click', exportarCSV);
 
   const inputArquivo = document.getElementById('input-arquivo');
@@ -789,7 +1079,7 @@ function init() {
       try {
         const r = importarCSV(String(leitor.result));
         if (r.total === 0) {
-          mostrarStatusImportacao('Nenhum abastecimento encontrado no arquivo.', 'erro');
+          mostrarStatusImportacao('Nenhum registro encontrado no arquivo.', 'erro');
         } else {
           const partes = [`${r.adicionados} importado(s)`];
           if (r.ignorados > 0) partes.push(`${r.ignorados} já existia(m)`);
@@ -810,17 +1100,18 @@ function init() {
   });
 
   document.getElementById('btn-apagar-tudo').addEventListener('click', () => {
-    const total = carregar().length;
+    const total = carregar().length + carregarDespesas().length;
     if (total === 0) {
       mostrarToast('Não há dados para apagar.');
       return;
     }
     const ok = confirm(
-      `Apagar todos os ${total} abastecimentos deste aparelho?\n\nIsso não pode ser desfeito.`
+      `Apagar todos os ${total} registros deste aparelho?\n\nIsso não pode ser desfeito.`
     );
     if (!ok) return;
 
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_DESPESAS);
     render();
     mostrarToast('Todos os dados foram apagados.');
   });
