@@ -167,11 +167,29 @@ main {
   font-weight: 600;
 }
 
+.resumo-mes-numeros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.resumo-mes-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .resumo-mes-valor {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--accent);
-  line-height: 1.1;
+  line-height: 1.15;
+}
+
+.resumo-mes-legenda {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 .resumo-mes-sub {

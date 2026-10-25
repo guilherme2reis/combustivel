@@ -1,4 +1,4 @@
-const VERSAO = '1.3.1';
+const VERSAO = '1.4.0';
 const STORAGE_KEY = 'combustivel.abastecimentos';
 const STORAGE_DESPESAS = 'combustivel.despesas';
 
@@ -187,19 +187,52 @@ function resumoSimples(lista) {
   };
 }
 
+/**
+ * Km rodados a partir das leituras do odômetro, não dos intervalos de tanque cheio.
+ * É o número que o motorista reconhece ("andei tanto neste mês") e aparece mesmo
+ * que nenhum tanque tenha sido fechado no período — ao contrário do km medido,
+ * que serve para calcular consumo e só existe entre dois tanques cheios.
+ */
+function calcularKmDoMes(mes, leituras) {
+  const doMes = leituras.filter((l) => l.data.slice(0, 7) === mes);
+  if (doMes.length === 0) return null;
+
+  const fim = Math.max(...doMes.map((l) => l.km));
+  const anteriores = leituras.filter((l) => l.data < `${mes}-01`);
+
+  // sem leitura anterior ao mês, mede do primeiro ao último registro do próprio mês
+  const inicio = anteriores.length > 0
+    ? Math.max(...anteriores.map((l) => l.km))
+    : Math.min(...doMes.map((l) => l.km));
+
+  return fim > inicio ? fim - inicio : null;
+}
+
 /** Estatísticas gerais, por tipo de combustível, por categoria de despesa e por mês. */
 function calcularEstatisticas(lista, despesas) {
   const ordenada = [...lista].sort((a, b) => a.km - b.km);
   const intervalos = calcularIntervalos(ordenada);
+
+  // abastecimentos sempre têm km; despesas só quando o usuário informou
+  const leituras = [
+    ...lista.map((item) => ({ data: item.data, km: item.km })),
+    ...despesas.filter((item) => item.km != null && item.km > 0)
+      .map((item) => ({ data: item.data, km: item.km })),
+  ].filter((l) => l.km > 0);
+
+  const kmOdometro = leituras.length > 1
+    ? Math.max(...leituras.map((l) => l.km)) - Math.min(...leituras.map((l) => l.km))
+    : null;
 
   const gastoDespesas = somaValor(despesas);
   const base = { ...resumoSimples(ordenada), ...agregarIntervalos(intervalos) };
 
   const geral = {
     ...base,
+    kmOdometro,
     gastoDespesas,
     gastoGeral: base.gastoTotal + gastoDespesas,
-    custoTotalPorKm: base.kmRodados ? (base.gastoTotal + gastoDespesas) / base.kmRodados : null,
+    custoTotalPorKm: kmOdometro ? (base.gastoTotal + gastoDespesas) / kmOdometro : null,
     quantidadeDespesas: despesas.length,
   };
 
@@ -251,14 +284,16 @@ function calcularEstatisticas(lista, despesas) {
     const gastoDespesasMes = somaValor(despesasDoMes);
     const intervalosMes = agregarIntervalos(intervalos.filter((it) => it.mes === mes));
     const gastoGeralMes = resumoMes.gastoTotal + gastoDespesasMes;
+    const kmDoMes = calcularKmDoMes(mes, leituras);
 
     return {
       mes,
       ...resumoMes,
       ...intervalosMes,
+      kmDoMes,
       gastoDespesas: gastoDespesasMes,
       gastoGeral: gastoGeralMes,
-      custoTotalPorKm: intervalosMes.kmRodados ? gastoGeralMes / intervalosMes.kmRodados : null,
+      custoTotalPorKm: kmDoMes ? gastoGeralMes / kmDoMes : null,
       quantidadeDespesas: despesasDoMes.length,
       porTipo: tiposDoMes,
       porCategoria: categoriasDoMes,
@@ -266,6 +301,35 @@ function calcularEstatisticas(lista, despesas) {
   });
 
   return { geral, porTipo, porCategoria, porMes };
+}
+
+/* ==================== máscara de valores ==================== */
+
+const MAX_DIGITOS = 9; // até 9.999.999,99
+
+/**
+ * Formata o campo enquanto o usuário digita, tratando o que ele digita como
+ * centavos: "21000" vira "210,00". Assim não é preciso digitar vírgula nem ponto —
+ * eles entram sozinhos, inclusive o separador de milhar.
+ */
+function formatarComoDecimal(texto) {
+  const digitos = String(texto).replace(/\D/g, '').slice(0, MAX_DIGITOS);
+  if (digitos === '') return '';
+  return (parseInt(digitos, 10) / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function aplicarMascaraDecimal(input) {
+  input.addEventListener('input', () => {
+    input.value = formatarComoDecimal(input.value);
+  });
+}
+
+/** Lê um campo com máscara ("1.234,56") como número. */
+function lerValorMascarado(id) {
+  return parseNumero(document.getElementById(id).value);
 }
 
 /* ==================== telas ==================== */
@@ -339,7 +403,7 @@ function renderInicio(stats, temRegistros) {
   document.getElementById('stat-gasto-total').textContent =
     temRegistros ? formatoMoeda(geral.gastoGeral) : '—';
   document.getElementById('stat-km-total').textContent =
-    geral.kmRodados != null ? formatoKm(geral.kmRodados) : '—';
+    geral.kmOdometro != null ? formatoKm(geral.kmOdometro) : '—';
 
   document.getElementById('stat-gasto-sub').textContent = temRegistros
     ? `Combustível ${formatoMoeda(geral.gastoTotal)} · Despesas ${formatoMoeda(geral.gastoDespesas)}`
@@ -359,10 +423,12 @@ function renderInicio(stats, temRegistros) {
     ultimo.mes === mesCorrente ? 'Mês atual' : 'Último mês registrado';
   document.getElementById('mes-atual-nome').textContent = nomeMes(ultimo.mes);
   document.getElementById('mes-atual-gasto').textContent = formatoMoeda(ultimo.gastoGeral);
+  document.getElementById('mes-atual-km').textContent =
+    ultimo.kmDoMes != null ? formatoKm(ultimo.kmDoMes) : '—';
 
   const partes = [`Combustível ${formatoMoeda(ultimo.gastoTotal)}`];
   if (ultimo.gastoDespesas > 0) partes.push(`Despesas ${formatoMoeda(ultimo.gastoDespesas)}`);
-  if (ultimo.kmRodados != null) partes.push(formatoKm(ultimo.kmRodados));
+  if (ultimo.custoTotalPorKm != null) partes.push(`${formatoCustoKm(ultimo.custoTotalPorKm)} no mês`);
   document.getElementById('mes-atual-sub').textContent = partes.join(' · ');
 }
 
@@ -467,7 +533,7 @@ function renderMensal(porMes) {
       criarItemDetalhe('Combustível', formatoMoeda(mes.gastoTotal)),
       criarItemDetalhe('Despesas', formatoMoeda(mes.gastoDespesas)),
       criarItemDetalhe('Litros', formatoLitros(mes.litrosTotal)),
-      criarItemDetalhe('Km rodados', mes.kmRodados != null ? formatoKm(mes.kmRodados) : '—'),
+      criarItemDetalhe('Km no mês', mes.kmDoMes != null ? formatoKm(mes.kmDoMes) : '—'),
       criarItemDetalhe('Consumo médio', formatoConsumo(mes.consumoMedio)),
       criarItemDetalhe('Preço médio/L', mes.precoMedioLitro != null ? formatoMoeda(mes.precoMedioLitro) : '—'),
       criarItemDetalhe('Custo/km comb.', formatoCustoKm(mes.custoPorKm)),
@@ -646,7 +712,7 @@ function renderTotal(geral, lista, despesas) {
     criarItemDetalhe('Combustível', formatoMoeda(geral.gastoTotal)),
     criarItemDetalhe('Despesas', formatoMoeda(geral.gastoDespesas)),
     criarItemDetalhe('Litros totais', formatoLitros(geral.litrosTotal)),
-    criarItemDetalhe('Km rodados', geral.kmRodados != null ? formatoKm(geral.kmRodados) : '—'),
+    criarItemDetalhe('Km rodados', geral.kmOdometro != null ? formatoKm(geral.kmOdometro) : '—'),
     criarItemDetalhe('Consumo médio', formatoConsumo(geral.consumoMedio)),
     criarItemDetalhe('Preço médio/L', geral.precoMedioLitro != null ? formatoMoeda(geral.precoMedioLitro) : '—'),
     criarItemDetalhe('Custo/km comb.', formatoCustoKm(geral.custoPorKm)),
@@ -989,6 +1055,8 @@ function init() {
   document.getElementById('data').value = isoHoje;
   document.getElementById('d-data').value = isoHoje;
 
+  document.querySelectorAll('[data-mascara-decimal]').forEach(aplicarMascaraDecimal);
+
   document.querySelectorAll('[data-ir]').forEach((botao) => {
     botao.addEventListener('click', () => irPara(botao.dataset.ir));
   });
@@ -1018,11 +1086,16 @@ function init() {
     const data = document.getElementById('data').value;
     const combustivel = document.getElementById('combustivel').value;
     const km = parseFloat(document.getElementById('km').value);
-    const litros = parseFloat(document.getElementById('litros').value);
-    const valorTotal = parseFloat(document.getElementById('valorTotal').value);
+    const litros = lerValorMascarado('litros');
+    const valorTotal = lerValorMascarado('valorTotal');
     const tanqueCheio = document.getElementById('tanqueCheio').checked;
 
     if (!data || !combustivel || isNaN(km) || isNaN(litros) || isNaN(valorTotal)) return;
+
+    if (litros <= 0 || valorTotal <= 0) {
+      mostrarToast('Informe litros e valor maiores que zero.');
+      return;
+    }
 
     const lista = carregar();
 
@@ -1049,10 +1122,15 @@ function init() {
     const data = document.getElementById('d-data').value;
     const categoria = document.getElementById('d-categoria').value;
     const descricao = limparTexto(document.getElementById('d-descricao').value);
-    const valor = parseFloat(document.getElementById('d-valor').value);
+    const valor = lerValorMascarado('d-valor');
     const kmBruto = parseFloat(document.getElementById('d-km').value);
 
     if (!data || !categoria || isNaN(valor)) return;
+
+    if (valor <= 0) {
+      mostrarToast('Informe um valor maior que zero.');
+      return;
+    }
 
     const listaDespesas = carregarDespesas();
     listaDespesas.push({

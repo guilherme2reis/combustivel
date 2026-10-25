@@ -1,4 +1,4 @@
-const VERSAO = '1.3.1';
+const VERSAO = '1.4.0';
 const CACHE = `tanq-${VERSAO}`;
 
 const ARQUIVOS = [

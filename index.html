@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TANQ">
-<link rel="stylesheet" href="style.css?v=1.3.1">
+<link rel="stylesheet" href="style.css?v=1.4.0">
 </head>
 <body>
 
@@ -54,7 +54,16 @@
         <span class="resumo-mes-label">Mês atual</span>
         <span class="resumo-mes-nome" id="mes-atual-nome">—</span>
       </div>
-      <div class="resumo-mes-valor" id="mes-atual-gasto">—</div>
+      <div class="resumo-mes-numeros">
+        <div class="resumo-mes-bloco">
+          <span class="resumo-mes-valor" id="mes-atual-gasto">—</span>
+          <span class="resumo-mes-legenda">gasto no mês</span>
+        </div>
+        <div class="resumo-mes-bloco">
+          <span class="resumo-mes-valor" id="mes-atual-km">—</span>
+          <span class="resumo-mes-legenda">km rodados</span>
+        </div>
+      </div>
       <div class="resumo-mes-sub" id="mes-atual-sub">—</div>
     </div>
 
@@ -144,11 +153,13 @@
         <div class="field-row">
           <div class="field">
             <label for="litros">Litros</label>
-            <input type="number" id="litros" inputmode="decimal" step="0.01" placeholder="ex: 35.5" required>
+            <input type="text" id="litros" inputmode="numeric" data-mascara-decimal
+                   placeholder="35,50" autocomplete="off" required>
           </div>
           <div class="field">
             <label for="valorTotal">Valor total (R$)</label>
-            <input type="number" id="valorTotal" inputmode="decimal" step="0.01" placeholder="ex: 210,00" required>
+            <input type="text" id="valorTotal" inputmode="numeric" data-mascara-decimal
+                   placeholder="210,00" autocomplete="off" required>
           </div>
         </div>
 
@@ -190,7 +201,8 @@
         <div class="field-row">
           <div class="field">
             <label for="d-valor">Valor (R$)</label>
-            <input type="number" id="d-valor" inputmode="decimal" step="0.01" placeholder="ex: 350,00" required>
+            <input type="text" id="d-valor" inputmode="numeric" data-mascara-decimal
+                   placeholder="350,00" autocomplete="off" required>
           </div>
           <div class="field">
             <label for="d-km">Km <span class="opcional">(opcional)</span></label>
@@ -304,6 +316,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="app.js?v=1.3.1"></script>
+<script src="app.js?v=1.4.0"></script>
 </body>
 </html>
